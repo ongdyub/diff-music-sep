@@ -234,4 +234,5 @@ pyrightconfig.json
 
 data/*
 
+exp/*
 # End of https://www.toptal.com/developers/gitignore/api/linux,macos,jupyternotebooks,python

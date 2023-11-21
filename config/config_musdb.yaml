@@ -1,0 +1,30 @@
+defaults:
+    - _self_
+    - datamodule: musdb18
+    - model: musdb_model
+    - trainer: allgpus
+    - experiment: null
+
+seed: 64736289
+name: musdb  # experiment name
+train: true
+test: false
+
+path:
+    exp_root: exp
+    datasets:
+        wsj0_mix: data/wsj0_mix
+        valentini: data/VCTK_DEMAND
+        musdb_mix: data/musdb18
+    figures: figures
+    
+hydra:
+    run:
+        dir: ${path.exp_root}/${name}/${now:%Y-%m-%d}_${now:%H-%M-%S}_${hydra.job.override_dirname}
+    job:
+        config:
+            override_dirname:
+                kv_sep: '-'
+                item_sep: '_'
+                exclude_keys: 
+                    - path.exp_root
