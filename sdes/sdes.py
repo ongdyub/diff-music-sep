@@ -341,7 +341,7 @@ class MixSDE(SDE):
             )
         t = torch.ones((y.shape[0],), device=y.device) * self.T
         std = self._std(t)
-        mean = torch.broadcast_to(0.5 * y, (y.shape[0], 2, y.shape[2]))
+        mean = torch.broadcast_to(0.5 * y, (y.shape[0], self.ndim, y.shape[2]))
         x_T = mean + std @ torch.randn_like(mean)
         return x_T
 
