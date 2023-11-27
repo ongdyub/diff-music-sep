@@ -8,7 +8,6 @@ import torch
 import torchaudio
 from hydra.utils import instantiate, to_absolute_path
 from omegaconf import DictConfig
-import musdb
 
 torchaudio.set_audio_backend("sox_io")
 
@@ -21,14 +20,14 @@ split_map = [
 ]
 
 
-class musdb_mix(torch.utils.data.Dataset):
+class musdb_mix_16000(torch.utils.data.Dataset):
     def __init__(
         self,
         path: Union[str, Path],
-        fs: Optional[int] = 44100,
+        fs: Optional[int] = 16000,
         cut: Optional[str] = "max",
         split: Optional[str] = "train",
-        max_len_s: Optional[float] = 1,
+        max_len_s: Optional[float] = 3,
         max_n_samples: Optional[int] = None,
     ):
         super().__init__()
@@ -43,10 +42,6 @@ class musdb_mix(torch.utils.data.Dataset):
         #         f"The sampling frequency fs can be only 8000 or 16000 (passed {fs})"
         #     )
 
-        # if n_spkr not in [2, 3]:
-        #     raise ValueError(
-        #         f"The number of speakers can only be 2 or 3 (passed {n_spkr})"
-        #     )
 
         if cut not in ["min", "max"]:
             raise ValueError(
@@ -55,35 +50,29 @@ class musdb_mix(torch.utils.data.Dataset):
 
         if split not in split_map:
             raise ValueError(
-                f"The split parameter must be 'train', 'valid', or 'test' (passed {split})"
+                f"The split parameter must be 'train', 'val', or 'test' (passed {split})"
             )
 
-        if split == 'train':
-            self.musdb_list = musdb.DB(root=self.base_folder, subsets="train", split='train')
-        elif split == 'val':
-            self.musdb_list = musdb.DB(root=self.base_folder, subsets="train", split='valid')
-        else:
-            self.musdb_list = musdb.DB(root=self.base_folder, subsets="test")
+        self.path = self.base_folder / split
 
-        # if max_n_samples is not None:
-        #     self.file_list = self.file_list[:max_n_samples]
+        self.file_list = []
+        for path_ in os.listdir(self.path):
+            if os.path.isdir(self.path/ path_):
+                self.file_list.append(self.path/path_)
+
+        if max_n_samples is not None:
+            self.file_list = self.file_list[:max_n_samples]
 
     def __len__(self):
-        return len(self.musdb_list)
+        return len(self.file_list)
 
     def __getitem__(self, idx):
-        data = self.musdb_list[idx].stems        
-        
-        # mix, *_ = torchaudio.load(self.path_mix / filename)
-        # tgt = torch.cat(
-        #     [torchaudio.load(path / filename)[0] for path in self.path_src], dim=0
-        # )
-
+        filename = self.file_list[idx]
         rand_channel = torch.randint(0,2, size=(1,))
-        data = list(map(lambda x: torch.from_numpy(x).float().transpose(0,1)[rand_channel], data))
-        
-        mix = data[0]   # [1,44100]   ---> [4,44100]
-        tgt = torch.cat(data[1:], dim=0)    # [4,44100]
+        mix = torchaudio.load(filename/'mixture.wav')[0][rand_channel]
+        tgt = torch.cat(
+            [torchaudio.load(filename / inst)[0][rand_channel] for inst in ['drums.wav', 'bass.wav', 'other.wav', 'vocals.wav']], dim=0
+        )
 
         if self.max_len is not None and tgt.shape[-1] > self.max_len:
             # take a random cut of the right size
@@ -113,7 +102,7 @@ def max_collator(batch):
     return torch.utils.data.default_collate(new_batch)
 
 
-class musdb_mix_Module(pl.LightningDataModule):
+class musdb_mix_16000_Module(pl.LightningDataModule):
     def __init__(self, config: DictConfig):
         super().__init__()
         self.cfg = config

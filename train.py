@@ -16,7 +16,7 @@ from pytorch_lightning import loggers as pl_loggers
 from tqdm import tqdm
 
 import utils
-from datasets import WSJ0_mix_Module, Valentini_Module, musdb_mix_Module
+from datasets import WSJ0_mix_Module, Valentini_Module, musdb_mix_Module, musdb_mix_16000_Module
 from pl_model import DiffSepModel
 
 log = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ def load_model(config):
     return model, (load_pretrained is not None)
 
 
-@hydra.main(config_path="./config", config_name="config_musdb")
+@hydra.main(config_path="./config", config_name="config")
 def main(cfg):
     if utils.ddp.is_rank_zero():
         exp_name = HydraConfig().get().run.dir
@@ -105,7 +105,8 @@ def main(cfg):
     val_loss_name = f"{cfg.model.main_val_loss}"
     loss_name = val_loss_name.split("/")[-1]  # avoid "/" in filenames
     modelcheckpoint_callback = pl.callbacks.ModelCheckpoint(
-        monitor=val_loss_name,
+        # monitor=val_loss_name,
+        monitor=None,
         save_top_k=-1,
         mode=cfg.model.main_val_loss_mode,
         filename="".join(
@@ -121,8 +122,10 @@ def main(cfg):
 
     if cfg.name == "enhancement":
         dm = Valentini_Module(cfg)
-    elif cfg.name == "musdb":
+    elif cfg.name == "musdb18":
         dm = musdb_mix_Module(cfg)
+    elif cfg.name == "musdb18_16000":
+        dm = musdb_mix_16000_Module(cfg)
     else:
         dm = WSJ0_mix_Module(cfg)
 

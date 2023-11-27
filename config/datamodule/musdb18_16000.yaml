@@ -4,12 +4,12 @@ train:
         shuffle: true
         batch_size: 4
     dataset:
-        _target_: datasets.musdb_mix
-        path: ${path.datasets.musdb_mix}
+        _target_: datasets.musdb_mix_16000
+        path: ${path.datasets.musdb_mix_16000}
         fs: ${model.fs}
         cut: max
         split: train
-        max_len_s: 1
+        max_len_s: 3
         max_n_samples: null
 val:
     dl_opts:
@@ -17,12 +17,12 @@ val:
         shuffle: false
         batch_size: 4
     dataset:
-        _target_: datasets.musdb_mix
-        path: ${path.datasets.musdb_mix}
+        _target_: datasets.musdb_mix_16000
+        path: ${path.datasets.musdb_mix_16000}
         fs: ${model.fs}
         cut: max
         split: val
-        max_len_s: 1
+        max_len_s: 3
         max_n_samples: null
 test:
     dl_opts:
@@ -30,10 +30,10 @@ test:
         shuffle: false
         batch_size: 4
     dataset:
-        _target_: datasets.musdb_mix
-        path: ${path.datasets.musdb_mix}
+        _target_: datasets.musdb_mix_16000
+        path: ${path.datasets.musdb_mix_16000}
         fs: ${model.fs}
         cut: max
         split: test
-        max_len_s: 1
+        max_len_s: 3
         max_n_samples: null
