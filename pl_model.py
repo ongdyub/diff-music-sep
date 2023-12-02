@@ -551,7 +551,13 @@ class DiffSepModel(pl.LightningModule):
             loss = self.train_step_init_5(mix, target)
         else:
             loss = self.compute_score_loss(mix, target)
-        # self.log("val/score_loss", loss, on_epoch=True, sync_dist=True)
+        
+        est, *_ = self.separate(mix)
+        est = self.denormalize_batch(est, *stats)
+        for name, loss in self.val_losses.items():
+            val_loss = loss(est, target)
+            print(f"Val {name} Loss: {val_loss}")
+            self.log(name, val_loss, on_epoch=True, sync_dist=True)
 
         # validation separation losses
         # if self.trainer.testing or self.n_batches_est_done < self.valid_max_sep_batches:

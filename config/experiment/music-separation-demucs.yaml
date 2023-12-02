@@ -1,0 +1,10 @@
+# @package _global_
+
+defaults:
+    - _self_
+    - override /datamodule: musdb18_demucs
+    - override /model: musdb_model_demucs
+    - override /trainer: allgpus
+
+name: musdb18_demucs  # experiment name
+

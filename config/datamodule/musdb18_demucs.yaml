@@ -2,7 +2,7 @@ train:
     dl_opts:
         num_workers: 64
         shuffle: true
-        batch_size: 4
+        batch_size: 12
     dataset:
         _target_: datasets.musdb_mix
         path: ${path.datasets.musdb_mix}
