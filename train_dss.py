@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 import utils
 from datasets import WSJ0_mix_Module, Valentini_Module, musdb_mix_Module, musdb_mix_16000_Module
-from pl_model import DiffSepModel
+from pl_model_dss import DiffSepModel
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ def load_model(config):
                 conf = yaml.safe_load(f)
                 config_seld_model = conf["config"]["model"][model_type]
 
-            config.model.seld_model.update(config_seld_model)
+            # config.model.seld_model.update(config_seld_model)
 
             log.info("Load model from lightning checkpoint")
             model = model_obj.load_from_checkpoint(
