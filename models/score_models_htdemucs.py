@@ -3,7 +3,7 @@ import torchaudio
 from hydra.utils import instantiate
 from demucs.htdemucs import HTDemucs
 
-class ScoreModelHtDemucs(torch.nn.Module):
+class ScoreModelHTDemucs(torch.nn.Module):
     def __init__(
         self,
         backbone_args,
@@ -20,5 +20,5 @@ class ScoreModelHtDemucs(torch.nn.Module):
             x: (batch, channels, time) same size as input
         """
         x = torch.cat((xt, mix), dim=1)
-        x = self.backbone(x)
+        x = self.backbone(x, time_cond)
         return x

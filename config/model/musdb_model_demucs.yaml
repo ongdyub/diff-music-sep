@@ -13,12 +13,12 @@ init_hack: false
 mmnr_thresh_pit: -10.0  # threshold for using pit with train_source_order=pit
 
 score_model:
-    _target_: models.score_models_htdemucs.ScoreModelHtDemucs
+    _target_: models.score_models_htdemucs.ScoreModelHTDemucs
     backbone_args:
-        _target_: models.htdemucs.HtDemucs
-        source_names: ["drum", "bass", "other", "vocals"]
-        in_channels: 5
-        initial_layer_num: 48
+        _target_: models.htdemucs.HTDemucs
+        sources: ["drum", "bass", "other", "vocals"]
+        audio_channels: 5
+        channels: 48
         
 sde:
     _target_: sdes.sdes.MixSDE
@@ -48,7 +48,7 @@ val_losses:
 
 optimizer:
     _target_: torch.optim.Adam
-    lr: 0.0001
+    lr: 0.001
     weight_decay: 0.0
 scheduler: null
 grad_clipper:

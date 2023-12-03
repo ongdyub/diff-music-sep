@@ -1,5 +1,6 @@
 conda install -c conda-forge ffmpeg
 pip install musdb==0.4.0
+pip install museval==0.4.1
 pip install pandas==2.1.3
 pip install numpy==1.26.2
 python3 -m pip install -U git+https://github.com/facebookresearch/demucs#egg=demucs
