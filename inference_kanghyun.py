@@ -32,7 +32,8 @@ max_len_s = 3
 sr = 16000
 max_data = max_len_s*sr
 device = 'cuda'
-audio_save_path = 'data/musdb18_16000/test/'
+audio_load_path = 'data/musdb18_16000/test/'
+audio_save_path = 'data/musdb18_16000_sample/test/'
 sdr_save_path = 'eval_sdr'
 
 model = DiffSepModel.load_from_checkpoint('exp/musdb18_16000/2023-11-28_13-16-04_experiment-music-separation-16000/checkpoints/epoch-5799_si_sdr-0.000.ckpt')
@@ -112,11 +113,11 @@ def calculate_sdr(name, est, tgt, mix):
 
 inst = ["drums","bass","other","vocals"]
 
-for song in tqdm(os.listdir(audio_save_path)):
-    filename = f'{audio_save_path}/{song}'
+for song in tqdm(os.listdir(audio_load_path)):
+    filename = f'{audio_load_path}{song}'
     if os.path.isdir(filename):
         est, tgt, mix = separate(filename)
-        new_filename=f'data/musdb18_16000_sample/test/{song}'
+        new_filename=f'{audio_save_path}{song}'
         os.makedirs(new_filename, exist_ok=True)
         for i in range(4):
             sf.write(f'{new_filename}/{inst[i]}.wav', torch.cat([est[0][[i]], est[1][[i]]], dim=0).transpose(0,1).numpy(), sr)
