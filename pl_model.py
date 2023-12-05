@@ -161,7 +161,7 @@ class DiffSepModel(pl.LightningModule):
 
         est = self.denormalize_batch(est, *stats)
 
-        return sampler()
+        return est
 
     def sample_time(self, x):
         n = x.shape[0]
