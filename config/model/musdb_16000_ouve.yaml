@@ -31,9 +31,9 @@ score_model:
     spec_trans_learnable: false
 
 sde:
-    _target_: sdes.sdes.MixSDE
+    _target_: sdes.sdes.OUVESDE
     ndim: ${model.n_speakers}
-    d_lambda: 2.0
+    theta: 2.0
     sigma_min: 0.05
     sigma_max: 0.5
     N: 30

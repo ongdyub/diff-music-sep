@@ -50,7 +50,7 @@ def load_model(config):
                 conf = yaml.safe_load(f)
                 config_seld_model = conf["config"]["model"][model_type]
 
-            config.model.seld_model.update(config_seld_model)
+            # config.model.seld_model.update(config_seld_model)
             model = model_obj(config)
 
             state_dict = torch.load(str(ckpt_path))
@@ -65,7 +65,7 @@ def load_model(config):
                 conf = yaml.safe_load(f)
                 config_seld_model = conf["config"]["model"][model_type]
 
-            config.model.seld_model.update(config_seld_model)
+            # config.model.seld_model.update(config_seld_model)
 
             log.info("Load model from lightning checkpoint")
             model = model_obj.load_from_checkpoint(

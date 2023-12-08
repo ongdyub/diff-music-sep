@@ -13,6 +13,7 @@ class Corrector(abc.ABC):
 
     def __init__(self, sde, score_fn, snr, n_steps):
         super().__init__()
+        self.model_option = sde.model_option
         self.rsde = sde.reverse(score_fn)
         self.score_fn = score_fn
         self.snr = snr
@@ -83,6 +84,9 @@ class AnnealedLangevinDynamics(Corrector):
 
         for _ in range(n_steps):
             grad = self.score_fn(x, t, *args)
+            if self.model_option == 'noise_est':
+                L = self.sde._std(t)
+                grad = self.sde.mult_std_inv(L, grad)
             noise = torch.randn_like(x)
             step_size = (target_snr * std) ** 2 * 2
             x_mean = x + step_size * grad
@@ -97,7 +101,7 @@ class AnnealedLangevinDynamics2(Corrector):
 
     def __init__(self, sde, score_fn, snr, n_steps):
         super().__init__(sde, score_fn, snr, n_steps)
-        if not isinstance(sde, (sdes.MixSDE, sdes.PriorMixSDE)):
+        if not isinstance(sde, (sdes.MixSDE, sdes.PriorMixSDE, sdes.OUVESDE, sdes.OUVESDE_KH)):
             raise NotImplementedError(
                 f"SDE class {sde.__class__.__name__} not yet supported."
             )
@@ -114,6 +118,10 @@ class AnnealedLangevinDynamics2(Corrector):
 
         for _ in range(n_steps):
             grad = self.score_fn(x, t, *args)
+            if self.model_option == 'noise_est':
+                L = self.sde._std(t)
+                grad = self.sde.mult_std_inv(L, grad)
+            
             noise = torch.randn_like(x)
 
             step_size = 2 * target_snr ** 2
@@ -138,4 +146,4 @@ class NoneCorrector(Corrector):
         pass
 
     def update_fn(self, x, t, *args):
-        return (x,)
+        return (x, None)
