@@ -159,8 +159,8 @@ class DiffSepModel(pl.LightningModule):
             sampler_kwargs.update(kwargs, merge=True)
 
         # Reverse sampling
-        sampler = self.get_pc_sampler(
-            predictor, corrector, mix, **sampler_kwargs
+        sampler = self.get_ddim_sampler(
+            mix, **sampler_kwargs
         )
         est, *others = sampler()
 
@@ -771,3 +771,23 @@ class DiffSepModel(pl.LightningModule):
                     return samples, ns
 
             return batched_sampling_fn
+
+    def get_ddim_sampler(
+        self,
+        y,
+        N=None,
+        schedule='linear',
+        **kwargs,
+    ):
+        N = self.sde.N if N is None else N
+        sde = self.sde.copy()
+        sde.N = N
+        kwargs = {"eps": self.t_eps, **kwargs}
+        
+        return sdes.get_ddim_sampler(
+            sde=sde,
+            score_fn=self,
+            y=y,
+            schedule=schedule,
+            **kwargs,
+        )

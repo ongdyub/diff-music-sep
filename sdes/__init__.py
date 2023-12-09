@@ -285,7 +285,6 @@ def get_ddim_sampler(
     denoise=True,
     true_mean=None,
     eps=3e-2,
-    snr=0.1,
     schedule="linear",
     **kwargs,
 ):

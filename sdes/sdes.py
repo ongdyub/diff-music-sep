@@ -880,7 +880,7 @@ class OUVESDE_KH(SDE):
         if theta_max == None:
             x = sp.symbols('x')
             eq = x**((theta_rho+1)/theta_rho)-theta_min**((theta_rho+1)/theta_rho) - theta_int_max*(theta_rho+1)*(x**(1/theta_rho)-theta_min**(1/theta_rho))
-            self.theta_max = float(sp.solve(sp.Eq(eq, 0))[-1])
+            self.theta_max = float(sp.solve(sp.Eq(eq, 0))[-1].as_real_imag()[0])
         else:
             self.theta_max = theta_max
         self.sigma_min = sigma_min

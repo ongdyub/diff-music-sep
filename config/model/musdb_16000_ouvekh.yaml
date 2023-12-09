@@ -25,6 +25,7 @@ score_model:
     backbone_args:
         _target_: models.ncsnpp.NCSNpp
         nf: 64
+        scale_by_sigma: false
     transform: exponent
     spec_abs_exponent: 0.5
     spec_factor: 0.33
@@ -40,7 +41,7 @@ sde:
     sigma_max: 0.5
     N: 30
     theta_max: 2.0
-    model_option: score_fn
+    model_option: noise_est
 
 
 sampler:
