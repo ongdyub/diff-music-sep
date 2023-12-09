@@ -148,7 +148,7 @@ class DiffSepModel(pl.LightningModule):
         self.normalize_batch = normalize_batch
         self.denormalize_batch = denormalize_batch
         
-        self.loss_option = getattr(self.config.model, "loss_option", "score_fn")
+        self.loss_option = getattr(self.config.model, "loss_option", "origin")
 
     def separate(self, mix, predictor="reverse_diffusion", corrector="ald2",**kwargs):
 

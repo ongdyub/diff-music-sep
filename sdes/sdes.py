@@ -298,8 +298,12 @@ class MixSDE(SDE):
         diffusion = sigma * np.sqrt(2 * self.logsig)
         return drift, diffusion
 
+    def _theta(self, t):
+        return torch.exp(-self.d_lambda * t)[:,None,None]
+
     def _mean_mix_mat(self, t):
-        decay = torch.exp(-t[:, None, None] * self.d_lambda)
+        # decay = torch.exp(-t[:, None, None] * self.d_lambda)
+        decay = self._theta(t)
         mat = self.A + decay * self.Pn
         return mat
 
@@ -685,9 +689,11 @@ class OUVESDE(SDE):
     def mult_std_inv(std, x):
         return x / std
 
+    def _theta(self, t):
+        return torch.exp(-self.theta * t)[:,None,None]
+
     def _mean(self, x0, t, y):
-        theta = self.theta
-        exp_interp = torch.exp(-theta * t)[:, None, None]
+        exp_interp = self._theta(t)
         y = torch.broadcast_to(y, x0.shape) / self.ndim
         return exp_interp * x0 + (1 - exp_interp) * y
 
@@ -890,30 +896,27 @@ class OUVESDE_KH(SDE):
     def T(self):
         return 1
 
-    def _theta(self, t):
+    def _gamma(self, t):
         if self.theta_rho == 0:
-            return self.theta_min
+            return torch.broadcast_to(torch.tensor(self.theta_min), t.shape)[:,None,None]
         a = self.theta_min ** (1/self.theta_rho)
         b = self.theta_max ** (1/self.theta_rho) - self.theta_min ** (1/self.theta_rho)
         return ((a + b*t)**self.theta_rho)[:,None,None]
     
-    def _theta_int(self, t):
+    def _theta(self, t):
         if self.theta_rho == 0:
-            return (self.theta_min * t)[:,None,None]
+            return torch.exp(-(self.theta_min * t)[:,None,None])
         a = self.theta_min ** (1/self.theta_rho)
         b = self.theta_max ** (1/self.theta_rho) - self.theta_min ** (1/self.theta_rho)
-        return (((a + b*t)**(self.theta_rho+1) - a**(self.theta_rho+1))/(b*(self.theta_rho+1)))[:,None,None]
-    
-    def _sigma(self, t):
-        return (self.sigma_min * (self.sigma_max/self.sigma_min)**t)[:,None,None]
+        return torch.exp(-(((a + b*t)**(self.theta_rho+1) - a**(self.theta_rho+1))/(b*(self.theta_rho+1)))[:,None,None])
 
     def _drift(self, x, t, y):
-        return self._theta(t) * (y - x)
+        return self._gamma(t) * (y - x)
     
     def _diffusion(self, t):
-        sigma = self._sigma(t)
+        sigma = self._std(t)
         sigma_prime = sigma * self.logsig
-        return torch.sqrt(2*sigma**2*(self._theta(t) + self.logsig))
+        return torch.sqrt(2*sigma**2*(self._gamma(t) + self.logsig))
 
     def sde(self, x, t, y):
         y = torch.broadcast_to(y, x.shape) / self.ndim
@@ -934,15 +937,14 @@ class OUVESDE_KH(SDE):
         return x / std
 
     def _mean(self, x0, t, y):
-        theta_int = self._theta_int(t)
-        exp_interp = torch.exp(-theta_int)
+        theta_int = self._theta(t)
         y = torch.broadcast_to(y, x0.shape) / self.ndim
-        return exp_interp * x0 + (1 - exp_interp) * y
+        return theta_int * x0 + (1 - theta_int) * y
 
     def _std(self, t):
         # This is a full solution to the ODE for P(t) in our derivations, after choosing g(s) as in self.sde()
         # could maybe replace the two torch.exp(... * t) terms here by cached values **t
-        return self._sigma(t)
+        return (self.sigma_min * (self.sigma_max/self.sigma_min)**t)[:,None,None]
 
     def marginal_prob(self, x0, t, y):
         return self._mean(x0, t, y), self._std(t)

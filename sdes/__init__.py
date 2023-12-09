@@ -276,3 +276,74 @@ def get_ode_sampler(
             return x, nfe
 
     return ode_sampler
+
+
+def get_ddim_sampler(
+    sde,
+    score_fn,
+    y,
+    denoise=True,
+    true_mean=None,
+    eps=3e-2,
+    snr=0.1,
+    schedule="linear",
+    **kwargs,
+):
+
+    def ddim_sampler():
+        """The PC sampler function."""
+        with torch.no_grad():
+            if true_mean is not None:
+                xt = sde.prior_sampling(true_mean.shape, true_mean).to(true_mean.device)
+            else:
+                xt = sde.prior_sampling(y.shape, y).to(y.device)
+            # timesteps = torch.linspace(sde.T, eps, sde.N, device=y.device)
+            base = 10
+            if schedule == "linear":
+                timesteps = torch.linspace(sde.T, eps, sde.N + 1, device=y.device)
+            elif schedule == "log":
+                timesteps = torch.logspace(
+                    math.log(sde.T) / math.log(base),
+                    math.log(eps) / math.log(base),
+                    sde.N + 1,
+                    base=base,
+                    device=y.device,
+                )
+            elif schedule == "revlog":
+                timesteps = torch.logspace(
+                    math.log(eps) / math.log(base),
+                    math.log(sde.T) / math.log(base),
+                    sde.N + 1,
+                    base=base,
+                    device=y.device,
+                ).flip(dims=(0,))
+            else:
+                raise NotImplementedError(f"Schedule '{schedule}' does not exist")
+            # timesteps = 1 - timesteps
+            # timesteps = timesteps.flip(dims=(0,)) + eps
+            s_bar = torch.broadcast_to(y, xt.shape) / sde.ndim
+            for i in range(sde.N):
+                t = timesteps[i]
+                t_pred = timesteps[i+1]
+                vec_t = torch.ones(y.shape[0], device=y.device) * t
+                score = score_fn(xt, vec_t, y)
+                if sde.model_option == 'score_fn':
+                    L = sde._std(t)
+                    noise = sde.mult_std(L, score)
+                elif sde.model_option == 'noise_est':
+                    noise = score
+                else:
+                    raise ValueError('choose the right model_option')
+                
+                theta_now = sde._theta(t)
+                theta_pred = sde._theta(t_pred)
+                sigma_now = sde._std(t)
+                sigma_pred = sde._std(t_pred)
+                
+                input = (theta_pred/theta_now)*input + theta_pred*(1/theta_pred - 1/theta_now)*s_bar + theta_pred*(sigma_pred/theta_pred - sigma_now/theta_now)*noise
+                
+            x_result = input
+            ns = sde.N
+            return x_result, ns
+
+    return ddim_sampler
