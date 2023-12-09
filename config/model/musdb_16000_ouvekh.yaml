@@ -37,10 +37,9 @@ sde:
     theta_min: 2.0
     theta_int_max: 2.0
     theta_rho: 0.0
-    sigma_min: 0.05
+    sigma_min: 0.01
     sigma_max: 0.5
     N: 30
-    theta_max: 2.0
     model_option: noise_est
 
 
