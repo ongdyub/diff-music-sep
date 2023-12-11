@@ -13,7 +13,7 @@ train:
         max_n_samples: null
 val:
     dl_opts:
-        num_workers: 0
+        num_workers: 4
         shuffle: false
         batch_size: 4
     dataset:
@@ -26,7 +26,7 @@ val:
         max_n_samples: null
 test:
     dl_opts:
-        num_workers: 0
+        num_workers: 4
         shuffle: false
         batch_size: 4
     dataset:

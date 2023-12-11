@@ -5,6 +5,7 @@ Taken and adapted from https://github.com/yang-song/score_sde_pytorch/blob/1618d
 import abc
 import math
 import warnings
+import sympy as sp
 
 import numpy as np
 import torch
@@ -43,13 +44,14 @@ def batch_broadcast(a, x):
 class SDE(abc.ABC):
     """SDE abstract class. Functions are designed for a mini-batch of inputs."""
 
-    def __init__(self, N):
+    def __init__(self, N, model_option = 'score_fn'):
         """Construct an SDE.
         Args:
             N: number of discretization time steps.
         """
         super().__init__()
         self.N = N
+        self.model_option = model_option
 
     @property
     @abc.abstractmethod
@@ -116,6 +118,9 @@ class SDE(abc.ABC):
         T = oself.T
         sde_fn = oself.sde
         discretize_fn = oself.discretize
+        model_option = oself.model_option
+        _std = oself._std
+        mult_std_inv = oself.mult_std_inv
 
         # Build the class for reverse-time SDE.
         class RSDE(oself.__class__):
@@ -140,6 +145,10 @@ class SDE(abc.ABC):
                 sde_drift, sde_diffusion = sde_fn(x, t, *args)
                 pad_dim = (...,) + (None,) * (x.ndim - sde_diffusion.ndim)
                 score = score_model(x, t, *args)
+                if model_option == 'noise_est':
+                    L = _std(t)
+                    score = mult_std_inv(L, score)
+                        
                 score_drift = (
                     -sde_diffusion[pad_dim] ** 2
                     * score
@@ -164,7 +173,12 @@ class SDE(abc.ABC):
                 """Create discretized iteration rules for the reverse diffusion sampler."""
                 f, G = discretize_fn(x, t, *args, **kwargs)
                 pad_dim = (...,) + (None,) * (f.ndim - G.ndim)
-                rev_f = f - G[pad_dim] ** 2 * score_model(x, t, *args) * (
+                score = score_model(x, t, *args)
+                if model_option == 'noise_est':
+                    L = _std(t)
+                    score = mult_std_inv(L, score)
+                
+                rev_f = f - G[pad_dim] ** 2 * score * (
                     0.5 if self.probability_flow else 1.0
                 )
                 rev_G = torch.zeros_like(G) if self.probability_flow else G
@@ -207,7 +221,7 @@ class MixSDE(SDE):
         )
         return parser
 
-    def __init__(self, ndim, d_lambda, sigma_min, sigma_max, N=1000):
+    def __init__(self, ndim, d_lambda, sigma_min, sigma_max, N=1000, model_option='score_fn'):
         """Construct a Variance Exploding SDE for source separation.
         Note that the "noise mean" `y` is not provided at construction, but must rather be given as an argument
         to the methods which require it (e.g., `sde` or `marginal_prob`).
@@ -228,6 +242,7 @@ class MixSDE(SDE):
         self.ratiosig = self.sigma_max / self.sigma_min
         self.logsig = math.log(self.ratiosig)
         self.N = N
+        self.model_option = model_option
 
         self.A, self.Pn = self.get_mix_mat()
 
@@ -249,7 +264,7 @@ class MixSDE(SDE):
 
     def copy(self):
         return MixSDE(
-            self.ndim, self.d_lambda, self.sigma_min, self.sigma_max, N=self.N
+            self.ndim, self.d_lambda, self.sigma_min, self.sigma_max, N=self.N, model_option=self.model_option
         )
 
     @property
@@ -283,8 +298,12 @@ class MixSDE(SDE):
         diffusion = sigma * np.sqrt(2 * self.logsig)
         return drift, diffusion
 
+    def _theta(self, t):
+        return torch.exp(-self.d_lambda * t)[:,None,None]
+
     def _mean_mix_mat(self, t):
-        decay = torch.exp(-t[:, None, None] * self.d_lambda)
+        # decay = torch.exp(-t[:, None, None] * self.d_lambda)
+        decay = self._theta(t)
         mat = self.A + decay * self.Pn
         return mat
 
@@ -379,7 +398,7 @@ class PriorMixSDE(SDE):
         )
         return parser
 
-    def __init__(self, ndim, d_lambda, sigma_min, sigma_max, N=1000, avg_len=510):
+    def __init__(self, ndim, d_lambda, sigma_min, sigma_max, N=1000, avg_len=510, model_option='score_fn'):
         """Construct a Variance Exploding SDE for source separation.
         Note that the "noise mean" `y` is not provided at construction, but must rather be given as an argument
         to the methods which require it (e.g., `sde` or `marginal_prob`).
@@ -400,6 +419,7 @@ class PriorMixSDE(SDE):
         self.ratiosig = self.sigma_max / self.sigma_min
         self.logsig = math.log(self.ratiosig)
         self.N = N
+        self.model_option = model_option
 
         self.A, self.Pn = self.get_mix_mat()
         self.avg_len = avg_len
@@ -426,6 +446,7 @@ class PriorMixSDE(SDE):
             self.sigma_max,
             N=self.N,
             avg_len=self.avg_len,
+            model_option = self.model_option
         )
 
     @property
@@ -575,7 +596,7 @@ class PriorMixSDE(SDE):
             mean = mix
         elif mix.shape[1] == 1:
             mean = torch.broadcast_to(
-                0.5 * mix, (mix.shape[0], self.ndim, mix.shape[2])
+                1/self.ndim * mix, (mix.shape[0], self.ndim, mix.shape[2])
             )
         else:
             raise ValueError(
@@ -620,7 +641,7 @@ class OUVESDE(SDE):
         )
         return parser
 
-    def __init__(self, theta, sigma_min, sigma_max, N=1000, **ignored_kwargs):
+    def __init__(self, ndim, theta, sigma_min, sigma_max, N=1000, model_option='score_fn', **ignored_kwargs):
         """Construct an Ornstein-Uhlenbeck Variance Exploding SDE.
         Note that the "steady-state mean" `y` is not provided at construction, but must rather be given as an argument
         to the methods which require it (e.g., `sde` or `marginal_prob`).
@@ -634,20 +655,23 @@ class OUVESDE(SDE):
             N: number of discretization steps
         """
         super().__init__(N)
+        self.ndim = ndim
         self.theta = theta
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
         self.logsig = np.log(self.sigma_max / self.sigma_min)
         self.N = N
+        self.model_option = model_option
 
     def copy(self):
-        return OUVESDE(self.theta, self.sigma_min, self.sigma_max, N=self.N)
+        return OUVESDE(self.ndim, self.theta, self.sigma_min, self.sigma_max, N=self.N, model_option=self.model_option)
 
     @property
     def T(self):
         return 1
 
     def sde(self, x, t, y):
+        y = torch.broadcast_to(y, x.shape) / self.ndim
         drift = self.theta * (y - x)
         # the sqrt(2*logsig) factor is required here so that logsig does not in the end affect the perturbation kernel
         # standard deviation. this can be understood from solving the integral of [exp(2s) * g(s)^2] from s=0 to t
@@ -657,9 +681,20 @@ class OUVESDE(SDE):
         diffusion = sigma * np.sqrt(2 * self.logsig)
         return drift, diffusion
 
+    @staticmethod
+    def mult_std(std, x):
+        return std * x
+
+    @staticmethod
+    def mult_std_inv(std, x):
+        return x / std
+
+    def _theta(self, t):
+        return torch.exp(-self.theta * t)[:,None,None]
+
     def _mean(self, x0, t, y):
-        theta = self.theta
-        exp_interp = torch.exp(-theta * t)[:, None, None, None]
+        exp_interp = self._theta(t)
+        y = torch.broadcast_to(y, x0.shape) / self.ndim
         return exp_interp * x0 + (1 - exp_interp) * y
 
     def _std(self, t):
@@ -674,18 +709,32 @@ class OUVESDE(SDE):
                 * logsig
             )
             / (theta + logsig)
-        )
+        )[:,None,None]
 
     def marginal_prob(self, x0, t, y):
         return self._mean(x0, t, y), self._std(t)
 
-    def prior_sampling(self, shape, y):
-        if shape != y.shape:
+
+    def prior_sampling(self, shape, mix):
+        if shape != mix.shape:
             warnings.warn(
-                f"Target shape {shape} does not match shape of y {y.shape}! Ignoring target shape."
+                f"Target shape {shape} does not match shape of mix {mix.shape}! Ignoring target shape."
             )
-        std = self._std(torch.ones((y.shape[0],), device=y.device))
-        x_T = y + torch.randn_like(y) * std[:, None, None, None]
+        t = torch.ones((mix.shape[0],), device=mix.device) * self.T
+        std = self._std(t)
+        if mix.shape[1] == self.ndim:
+            mean = mix
+        elif mix.shape[1] == 1:
+            mean = torch.broadcast_to(
+                mix, (mix.shape[0], self.ndim, mix.shape[2])
+            ) / self.ndim
+        else:
+            raise ValueError(
+                "The input provided to prior_sampling should have 1 channel,"
+                f" or the same as the number of speakers. Found {mix.shape[1]} "
+                "channels instead."
+            )
+        x_T = mean + self.mult_std(std, torch.randn_like(mean))
         return x_T
 
     def prior_logp(self, z):
@@ -717,7 +766,7 @@ class OUVPSDE(SDE):
         )
         return parser
 
-    def __init__(self, beta_min, beta_max, stiffness=1, N=1000, **ignored_kwargs):
+    def __init__(self, beta_min, beta_max, stiffness=1, N=1000, model_option='score_fn', **ignored_kwargs):
         """
         !!! We do not utilize this SDE in our works due to observed instabilities around t=0.2. !!!
         Construct an Ornstein-Uhlenbeck Variance Preserving SDE:
@@ -737,6 +786,7 @@ class OUVPSDE(SDE):
         self.beta_max = beta_max
         self.stiffness = stiffness
         self.N = N
+        self.model_option = model_option
 
     def copy(self):
         return OUVPSDE(self.beta_min, self.beta_max, self.stiffness, N=self.N)
@@ -774,6 +824,152 @@ class OUVPSDE(SDE):
             )
         std = self._std(torch.ones((y.shape[0],), device=y.device))
         x_T = y + torch.randn_like(y) * std[:, None, None, None]
+        return x_T
+
+    def prior_logp(self, z):
+        raise NotImplementedError("prior_logp for OU SDE not yet implemented!")
+
+
+@SDERegistry.register("ouve_kh")
+class OUVESDE_KH(SDE):
+    @staticmethod
+    def add_argparse_args(parser):
+        parser.add_argument(
+            "--sde-n",
+            type=int,
+            default=1000,
+            help="The number of timesteps in the SDE discretization. 30 by default",
+        )
+        parser.add_argument(
+            "--theta",
+            type=float,
+            default=1.5,
+            help="The constant stiffness of the Ornstein-Uhlenbeck process. 1.5 by default.",
+        )
+        parser.add_argument(
+            "--sigma-min",
+            type=float,
+            default=0.05,
+            help="The minimum sigma to use. 0.05 by default.",
+        )
+        parser.add_argument(
+            "--sigma-max",
+            type=float,
+            default=0.5,
+            help="The maximum sigma to use. 0.5 by default.",
+        )
+        return parser
+
+    def __init__(self, ndim, theta_min, theta_int_max, theta_rho, sigma_min, sigma_max, N=1000, theta_max = None, model_option='score_fn', **ignored_kwargs):
+        """Construct an Ornstein-Uhlenbeck Variance Exploding SDE.
+        Note that the "steady-state mean" `y` is not provided at construction, but must rather be given as an argument
+        to the methods which require it (e.g., `sde` or `marginal_prob`).
+        dx = -theta (y-x) dt + sigma(t) dw
+        with
+        sigma(t) = sigma_min (sigma_max/sigma_min)^t * sqrt(2 log(sigma_max/sigma_min))
+        Args:
+            theta: stiffness parameter.
+            sigma_min: smallest sigma.
+            sigma_max: largest sigma.
+            N: number of discretization steps
+        """
+        super().__init__(N)
+        self.ndim = ndim
+        self.theta_min = theta_min
+        self.theta_rho = theta_rho
+        if theta_max == None:
+            x = sp.symbols('x')
+            eq = x**((theta_rho+1)/theta_rho)-theta_min**((theta_rho+1)/theta_rho) - theta_int_max*(theta_rho+1)*(x**(1/theta_rho)-theta_min**(1/theta_rho))
+            self.theta_max = float(sp.solve(sp.Eq(eq, 0))[-1].as_real_imag()[0])
+        else:
+            self.theta_max = theta_max
+        self.sigma_min = sigma_min
+        self.sigma_max = sigma_max
+        self.logsig = math.log(self.sigma_max / self.sigma_min)
+        self.N = N
+        self.model_option = model_option
+
+    def copy(self):
+        return OUVESDE_KH(self.ndim, self.theta_min, None, self.theta_rho, self.sigma_min, self.sigma_max, N=self.N, theta_max=self.theta_max, model_option=self.model_option)
+
+    @property
+    def T(self):
+        return 1
+
+    def _gamma(self, t):
+        if self.theta_rho == 0:
+            return torch.broadcast_to(torch.tensor(self.theta_min, device=t.device), t.shape)[:,None,None]
+        a = self.theta_min ** (1/self.theta_rho)
+        b = self.theta_max ** (1/self.theta_rho) - self.theta_min ** (1/self.theta_rho)
+        return ((a + b*t)**self.theta_rho)[:,None,None]
+    
+    def _theta(self, t):
+        if self.theta_rho == 0:
+            return torch.exp(-(self.theta_min * t)[:,None,None])
+        a = self.theta_min ** (1/self.theta_rho)
+        b = self.theta_max ** (1/self.theta_rho) - self.theta_min ** (1/self.theta_rho)
+        return torch.exp(-(((a + b*t)**(self.theta_rho+1) - a**(self.theta_rho+1))/(b*(self.theta_rho+1)))[:,None,None])
+
+    def _drift(self, x, t, y):
+        return self._gamma(t) * (y - x)
+    
+    def _diffusion(self, t):
+        sigma = self._std(t)
+        sigma_prime = sigma * self.logsig
+        return torch.sqrt(2*sigma**2*(self._gamma(t) + self.logsig))
+
+    def sde(self, x, t, y):
+        y = torch.broadcast_to(y, x.shape) / self.ndim
+        drift = self._drift(x, t, y)
+        # the sqrt(2*logsig) factor is required here so that logsig does not in the end affect the perturbation kernel
+        # standard deviation. this can be understood from solving the integral of [exp(2s) * g(s)^2] from s=0 to t
+        # with g(t) = sigma(t) as defined here, and seeing that `logsig` remains in the integral solution
+        # unless this sqrt(2*logsig) factor is included.
+        diffusion = self._diffusion(t)
+        return drift, diffusion
+
+    @staticmethod
+    def mult_std(std, x):
+        return std * x
+
+    @staticmethod
+    def mult_std_inv(std, x):
+        return x / std
+
+    def _mean(self, x0, t, y):
+        theta_int = self._theta(t)
+        y = torch.broadcast_to(y, x0.shape) / self.ndim
+        return theta_int * x0 + (1 - theta_int) * y
+
+    def _std(self, t):
+        # This is a full solution to the ODE for P(t) in our derivations, after choosing g(s) as in self.sde()
+        # could maybe replace the two torch.exp(... * t) terms here by cached values **t
+        return (self.sigma_min * (self.sigma_max/self.sigma_min)**t)[:,None,None]
+
+    def marginal_prob(self, x0, t, y):
+        return self._mean(x0, t, y), self._std(t)
+
+
+    def prior_sampling(self, shape, mix):
+        if shape != mix.shape:
+            warnings.warn(
+                f"Target shape {shape} does not match shape of mix {mix.shape}! Ignoring target shape."
+            )
+        t = torch.ones((mix.shape[0],), device=mix.device) * self.T
+        std = self._std(t)
+        if mix.shape[1] == self.ndim:
+            mean = mix
+        elif mix.shape[1] == 1:
+            mean = torch.broadcast_to(
+                mix, (mix.shape[0], self.ndim, mix.shape[2])
+            ) / self.ndim
+        else:
+            raise ValueError(
+                "The input provided to prior_sampling should have 1 channel,"
+                f" or the same as the number of speakers. Found {mix.shape[1]} "
+                "channels instead."
+            )
+        x_T = mean + self.mult_std(std, torch.randn_like(mean))
         return x_T
 
     def prior_logp(self, z):

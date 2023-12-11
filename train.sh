@@ -1,3 +1,4 @@
-CUDA_VISIBLE_DEVICES=1 python train.py experiment=music-separation-demucs
-# CUDA_VISIBLE_DEVICES=1 python train.py experiment=music-separation
-# python train.py experiment=music-separation-16000
+python train.py experiment=music-separation-16000-ouvekh model.sde.sigma_min=0.01 model.sde.sigma_max=2
+python train.py experiment=music-separation-16000-ouvekh model.sde.sigma_min=0.01 model.sde.sigma_max=2 model.sde.theta_min=0.1 model.sde.theta_int_max=5.0 model.sde.theta_rho=1
+python train.py experiment=music-separation-16000-ouvekh model.sde.sigma_min=0.01 model.sde.sigma_max=2 model.sde.theta_min=0.1 model.sde.theta_int_max=5.0 model.sde.theta_rho=2
+python train.py experiment=music-separation-16000-ouvekh model.sde.sigma_min=0.01 model.sde.sigma_max=2 model.sde.theta_min=0.1 model.sde.theta_int_max=5.0 model.sde.theta_rho=4

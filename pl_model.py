@@ -78,10 +78,13 @@ def power_order_sources(x):
     return x
 
 
-def normalize_batch(batch):
+def normalize_batch(batch, ndim=4):
     mix, tgt = batch
     mean = mix.mean(dim=(1, 2), keepdim=True)
     std = mix.std(dim=(1, 2), keepdim=True).clamp(min=1e-5)
+    
+    std /= ndim
+
     mix = (mix - mean) / std
     if tgt is not None:
         tgt = (tgt - mean) / std
@@ -144,22 +147,26 @@ class DiffSepModel(pl.LightningModule):
 
         self.normalize_batch = normalize_batch
         self.denormalize_batch = denormalize_batch
+        
+        self.loss_option = getattr(self.config.model, "loss_option", "origin")
 
-    def separate(self, mix, **kwargs):
-
-        (mix, _), *stats = self.normalize_batch((mix, None))
+    def separate(self, mix, sampler='ddim', predictor="reverse_diffusion", corrector="ald2",**kwargs):
 
         sampler_kwargs = self.config.model.sampler.copy()
         with open_dict(sampler_kwargs):
             sampler_kwargs.update(kwargs, merge=True)
 
         # Reverse sampling
-        sampler = self.get_pc_sampler(
-            "reverse_diffusion", "ald2", mix, **sampler_kwargs
+        if sampler == 'ddim':
+            sampler = self.get_ddim_sampler(
+                mix, **sampler_kwargs
+            )
+        elif sampler == 'pc':
+            sampler = self.get_pc_sampler(
+            predictor, corrector, mix, **sampler_kwargs
         )
+            
         est, *others = sampler()
-
-        est = self.denormalize_batch(est, *stats)
 
         return est
 
@@ -415,8 +422,17 @@ class DiffSepModel(pl.LightningModule):
         pred_score = self(x_t, time, mix)
 
         # compute the MSE loss
-        L_score = self.sde.mult_std(L, pred_score)
-        loss = self.loss(L_score, -z)
+        
+        if self.sde.model_option == 'noise_est':
+            loss = self.loss(pred_score, -z)
+        elif self.loss_option == 'origin':
+            L_score = self.sde.mult_std(L, pred_score)
+            loss = self.loss(L_score, -z)
+        elif self.loss_option == 'loss_weighting':
+            L_z = self.sde.mult_std_inv(L, z)
+            loss = self.loss(pred_score, -L_z)
+        else:
+            raise ValueError("choose appropriate loss_option.")
 
         if loss.ndim == 3:
             loss = loss.mean(dim=(-2, -1))
@@ -515,6 +531,8 @@ class DiffSepModel(pl.LightningModule):
 
             loss = self.compute_score_loss(mix, target)
 
+        
+        
         # every 10 steps, we log stuff
         cur_step = self.trainer.global_step
         self.last_step = getattr(self, "last_step", 0)
@@ -526,7 +544,9 @@ class DiffSepModel(pl.LightningModule):
                 {"train/score_loss": loss},
                 step=cur_step,
             )
-
+            with open(f'{self.sde.sigma_min}_{self.sde.sigma_max}_train.txt', 'a') as f:
+                f.write(f"MSE Loss: {loss}\n")
+                
         self.do_lr_warmup()
 
         return loss
@@ -538,26 +558,19 @@ class DiffSepModel(pl.LightningModule):
         self.n_batches_est_done = 0
 
     def validation_step(self, batch, batch_idx, dataset_i=0):
+        tgt = batch[1]
         batch, *stats = self.normalize_batch(batch)
-
         mix, target = batch
 
-        # validation score loss
-        if self.init_hack == 7:
-            loss = self.train_step_init_7(mix, target)
-        elif self.init_hack == 6:
-            loss = self.train_step_init_6(mix, target)
-        elif self.init_hack == 5:
-            loss = self.train_step_init_5(mix, target)
-        else:
-            loss = self.compute_score_loss(mix, target)
-        
-        est, *_ = self.separate(mix)
+        est = self.separate(mix)
         est = self.denormalize_batch(est, *stats)
+        
         for name, loss in self.val_losses.items():
-            val_loss = loss(est, target)
+            val_loss = loss(est, tgt)
+            with open(f'{self.sde.sigma_min}_{self.sde.sigma_max}_valid.txt', 'a') as f:
+                f.write(f"Val {name} Loss: {val_loss}\n")
             print(f"Val {name} Loss: {val_loss}")
-            self.log(name, val_loss, on_epoch=True, sync_dist=True)
+            # self.log(name, val_loss, on_epoch=True)
 
         # validation separation losses
         # if self.trainer.testing or self.n_batches_est_done < self.valid_max_sep_batches:
@@ -763,3 +776,23 @@ class DiffSepModel(pl.LightningModule):
                     return samples, ns
 
             return batched_sampling_fn
+
+    def get_ddim_sampler(
+        self,
+        y,
+        N=None,
+        schedule='linear',
+        **kwargs,
+    ):
+        N = self.sde.N if N is None else N
+        sde = self.sde.copy()
+        sde.N = N
+        kwargs = {"eps": self.t_eps, **kwargs}
+        
+        return sdes.get_ddim_sampler(
+            sde=sde,
+            score_fn=self,
+            y=y,
+            schedule=schedule,
+            **kwargs,
+        )

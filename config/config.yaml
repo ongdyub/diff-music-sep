@@ -9,7 +9,7 @@ seed: 64736289
 name: default  # experiment name
 train: true
 test: false
-# load_pretrained: exp/musdb18_16000/2023-11-27_15-07-12_experiment-music-separation-16000/checkpoints/epoch-6099_si_sdr-0.000.ckpt
+# load_pretrained: exp/musdb18_16000/mixsde_score_fn/checkpoints/epoch-5799_si_sdr-0.000.ckpt
 
 path:
     exp_root: exp

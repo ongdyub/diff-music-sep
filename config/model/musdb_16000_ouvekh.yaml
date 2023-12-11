@@ -25,19 +25,23 @@ score_model:
     backbone_args:
         _target_: models.ncsnpp.NCSNpp
         nf: 64
+        scale_by_sigma: false
     transform: exponent
     spec_abs_exponent: 0.5
     spec_factor: 0.33
     spec_trans_learnable: false
 
 sde:
-    _target_: sdes.sdes.MixSDE
+    _target_: sdes.sdes.OUVESDE_KH
     ndim: ${model.n_speakers}
-    d_lambda: 2.0
-    sigma_min: 0.05
-    sigma_max: 0.5
+    theta_min: 2.0
+    theta_int_max: 2.0
+    theta_rho: 0.0
+    sigma_min: 0.01
+    sigma_max: 2.0
     N: 30
-    model_option: score_fn
+    model_option: noise_est
+
 
 sampler:
     N: 30
