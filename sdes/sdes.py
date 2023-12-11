@@ -877,12 +877,14 @@ class OUVESDE_KH(SDE):
         self.ndim = ndim
         self.theta_min = theta_min
         self.theta_rho = theta_rho
-        if theta_max == None:
+        if theta_max != None:
+            self.theta_max = theta_max
+        elif theta_rho != 0:
             x = sp.symbols('x')
             eq = x**((theta_rho+1)/theta_rho)-theta_min**((theta_rho+1)/theta_rho) - theta_int_max*(theta_rho+1)*(x**(1/theta_rho)-theta_min**(1/theta_rho))
             self.theta_max = float(sp.solve(sp.Eq(eq, 0))[-1].as_real_imag()[0])
         else:
-            self.theta_max = theta_max
+            self.theta_max = theta_min
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
         self.logsig = math.log(self.sigma_max / self.sigma_min)
