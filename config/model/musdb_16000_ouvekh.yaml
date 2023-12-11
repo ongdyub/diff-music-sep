@@ -38,7 +38,7 @@ sde:
     theta_int_max: 2.0
     theta_rho: 0.0
     sigma_min: 0.01
-    sigma_max: 0.5
+    sigma_max: 2.0
     N: 30
     model_option: noise_est
 

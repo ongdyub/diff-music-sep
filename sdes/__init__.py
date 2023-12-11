@@ -286,6 +286,8 @@ def get_ddim_sampler(
     true_mean=None,
     eps=3e-2,
     schedule="linear",
+    noise_true = None,    #### test
+    tgt = None, ###### test
     **kwargs,
 ):
 
@@ -321,27 +323,36 @@ def get_ddim_sampler(
             # timesteps = 1 - timesteps
             # timesteps = timesteps.flip(dims=(0,)) + eps
             s_bar = torch.broadcast_to(y, xt.shape) / sde.ndim
+            if noise_true is not None:
+                mean, std = sde.marginal_prob(tgt, torch.ones(y.shape[0], device=tgt.device), y)
+                xt = mean + sde.mult_std(std, noise_true)
             for i in range(sde.N):
                 t = timesteps[i]
                 t_pred = timesteps[i+1]
                 vec_t = torch.ones(y.shape[0], device=y.device) * t
-                score = score_fn(xt, vec_t, y)
-                if sde.model_option == 'score_fn':
-                    L = sde._std(t)
-                    noise = sde.mult_std(L, score)
-                elif sde.model_option == 'noise_est':
-                    noise = score
+                vec_t_pred = torch.ones(y.shape[0], device=y.device) * t_pred
+                if noise_true == None:
+                    score = score_fn(xt, vec_t, y)
+                    if sde.model_option == 'score_fn':
+                        L = sde._std(vec_t)
+                        noise = -sde.mult_std(L, score)
+                    elif sde.model_option == 'noise_est':
+                        noise = -score
+                    else:
+                        raise ValueError('choose the right model_option')
                 else:
-                    raise ValueError('choose the right model_option')
+                    score = score_fn(xt, vec_t, y)
+                    L = sde._std(vec_t)
+                    noise = -sde.mult_std(L, score)
                 
-                theta_now = sde._theta(t)
-                theta_pred = sde._theta(t_pred)
-                sigma_now = sde._std(t)
-                sigma_pred = sde._std(t_pred)
+                theta_now = sde._theta(vec_t)
+                theta_pred = sde._theta(vec_t_pred)
+                sigma_now = sde._std(vec_t)
+                sigma_pred = sde._std(vec_t_pred)
                 
-                input = (theta_pred/theta_now)*input + theta_pred*(1/theta_pred - 1/theta_now)*s_bar + theta_pred*(sigma_pred/theta_pred - sigma_now/theta_now)*noise
+                xt = (theta_pred/theta_now)*xt + theta_pred*(1/theta_pred - 1/theta_now)*s_bar + theta_pred*(sde.mult_std(sigma_pred, noise)/theta_pred - sde.mult_std(sigma_now, noise)/theta_now)
                 
-            x_result = input
+            x_result = xt
             ns = sde.N
             return x_result, ns
 

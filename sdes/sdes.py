@@ -898,7 +898,7 @@ class OUVESDE_KH(SDE):
 
     def _gamma(self, t):
         if self.theta_rho == 0:
-            return torch.broadcast_to(torch.tensor(self.theta_min), t.shape)[:,None,None]
+            return torch.broadcast_to(torch.tensor(self.theta_min, device=t.device), t.shape)[:,None,None]
         a = self.theta_min ** (1/self.theta_rho)
         b = self.theta_max ** (1/self.theta_rho) - self.theta_min ** (1/self.theta_rho)
         return ((a + b*t)**self.theta_rho)[:,None,None]

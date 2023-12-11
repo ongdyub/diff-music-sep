@@ -78,12 +78,12 @@ def power_order_sources(x):
     return x
 
 
-def normalize_batch(batch):
+def normalize_batch(batch, ndim=4):
     mix, tgt = batch
     mean = mix.mean(dim=(1, 2), keepdim=True)
     std = mix.std(dim=(1, 2), keepdim=True).clamp(min=1e-5)
     
-    std /= 4
+    std /= ndim
 
     mix = (mix - mean) / std
     if tgt is not None:
@@ -150,21 +150,23 @@ class DiffSepModel(pl.LightningModule):
         
         self.loss_option = getattr(self.config.model, "loss_option", "origin")
 
-    def separate(self, mix, predictor="reverse_diffusion", corrector="ald2",**kwargs):
-
-        (mix, _), *stats = self.normalize_batch((mix, None))
+    def separate(self, mix, sampler='ddim', predictor="reverse_diffusion", corrector="ald2",**kwargs):
 
         sampler_kwargs = self.config.model.sampler.copy()
         with open_dict(sampler_kwargs):
             sampler_kwargs.update(kwargs, merge=True)
 
         # Reverse sampling
-        sampler = self.get_ddim_sampler(
-            mix, **sampler_kwargs
+        if sampler == 'ddim':
+            sampler = self.get_ddim_sampler(
+                mix, **sampler_kwargs
+            )
+        elif sampler == 'pc':
+            sampler = self.get_pc_sampler(
+            predictor, corrector, mix, **sampler_kwargs
         )
+            
         est, *others = sampler()
-
-        est = self.denormalize_batch(est, *stats)
 
         return est
 
@@ -425,7 +427,7 @@ class DiffSepModel(pl.LightningModule):
             loss = self.loss(pred_score, -z)
         elif self.loss_option == 'origin':
             L_score = self.sde.mult_std(L, pred_score)
-            loss = self.loss(L_score, -z)    
+            loss = self.loss(L_score, -z)
         elif self.loss_option == 'loss_weighting':
             L_z = self.sde.mult_std_inv(L, z)
             loss = self.loss(pred_score, -L_z)
@@ -556,12 +558,15 @@ class DiffSepModel(pl.LightningModule):
         self.n_batches_est_done = 0
 
     def validation_step(self, batch, batch_idx, dataset_i=0):
-        
+        tgt = batch[1]
+        batch, *stats = self.normalize_batch(batch)
         mix, target = batch
-                
-        est, *_ = self.separate(mix)
+
+        est = self.separate(mix)
+        est = self.denormalize_batch(est, *stats)
+        
         for name, loss in self.val_losses.items():
-            val_loss = loss(est, target)
+            val_loss = loss(est, tgt)
             with open(f'{self.sde.sigma_min}_{self.sde.sigma_max}_valid.txt', 'a') as f:
                 f.write(f"Val {name} Loss: {val_loss}\n")
             print(f"Val {name} Loss: {val_loss}")
