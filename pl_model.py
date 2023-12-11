@@ -78,7 +78,7 @@ def power_order_sources(x):
     return x
 
 
-def normalize_batch(batch, ndim=4):
+def normalize_batch(batch, ndim=1):
     mix, tgt = batch
     mean = mix.mean(dim=(1, 2), keepdim=True)
     std = mix.std(dim=(1, 2), keepdim=True).clamp(min=1e-5)
@@ -524,11 +524,6 @@ class DiffSepModel(pl.LightningModule):
             loss = self.compute_score_loss_with_pit(mix, target)
         else:
 
-            if self.train_source_order == "power":
-                target = power_order_sources(target)
-            elif self.train_source_order == "random":
-                target = shuffle_sources(target)
-
             loss = self.compute_score_loss(mix, target)
 
         
@@ -544,7 +539,7 @@ class DiffSepModel(pl.LightningModule):
                 {"train/score_loss": loss},
                 step=cur_step,
             )
-            with open(f'{self.sde.sigma_min}_{self.sde.sigma_max}_train.txt', 'a') as f:
+            with open(f'train_loss.txt', 'a') as f:
                 f.write(f"MSE Loss: {loss}\n")
                 
         self.do_lr_warmup()
@@ -567,7 +562,7 @@ class DiffSepModel(pl.LightningModule):
         
         for name, loss in self.val_losses.items():
             val_loss = loss(est, tgt)
-            with open(f'{self.sde.sigma_min}_{self.sde.sigma_max}_valid.txt', 'a') as f:
+            with open(f'valid_loss.txt', 'a') as f:
                 f.write(f"Val {name} Loss: {val_loss}\n")
             print(f"Val {name} Loss: {val_loss}")
             # self.log(name, val_loss, on_epoch=True)
