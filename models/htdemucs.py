@@ -251,7 +251,11 @@ class HTDemucs(nn.Module):
         self.tencoder = nn.ModuleList()
         self.tdecoder = nn.ModuleList()
 
-        chin = audio_channels
+        
+        
+        chin = audio_channels  ################ 원래 2개, 우리 모델: 5개(one channel) or 10개(two channel) ############
+        
+        
         chin_z = chin  # number of channels for the freq branch
         if self.cac:
             chin_z *= 2
@@ -325,7 +329,13 @@ class HTDemucs(nn.Module):
                 enc = MultiWrap(enc, multi_freqs)
             self.encoder.append(enc)
             if index == 0:
-                chin = self.audio_channels * len(self.sources)
+                
+                
+                
+                chin = self.audio_channels * len(self.sources) ########### len(self.sources) = 4 ###########
+                
+                
+                
                 chin_z = chin
                 if self.cac:
                     chin_z *= 2
@@ -644,7 +654,15 @@ class HTDemucs(nn.Module):
         if x_is_mps:
             x = x.cpu()
 
-        zout = self._mask(z, x)
+
+
+
+        zout = self._mask(z, x)    ################# 제거 ##################
+        
+        
+        
+        
+        
         if self.use_train_segment:
             if self.training:
                 x = self._ispec(zout, length)
