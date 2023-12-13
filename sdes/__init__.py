@@ -331,19 +331,20 @@ def get_ddim_sampler(
                 t_pred = timesteps[i+1]
                 vec_t = torch.ones(y.shape[0], device=y.device) * t
                 vec_t_pred = torch.ones(y.shape[0], device=y.device) * t_pred
-                if noise_true == None:
-                    score = score_fn(xt, vec_t, y)
-                    if sde.model_option == 'score_fn':
-                        L = sde._std(vec_t)
-                        noise = -sde.mult_std(L, score)
-                    elif sde.model_option == 'noise_est':
-                        noise = -score
-                    else:
-                        raise ValueError('choose the right model_option')
-                else:
-                    score = score_fn(xt, vec_t, y)
+                # if noise_true == None:
+                score = score_fn(xt, vec_t, y)
+                if sde.model_option == 'score_fn':
                     L = sde._std(vec_t)
                     noise = -sde.mult_std(L, score)
+                elif sde.model_option == 'noise_est':
+                    noise = -score
+                else:
+                    raise ValueError('choose the right model_option')
+                # else:
+                #     score = score_fn(xt, vec_t, y)
+                #     # L = sde._std(vec_t)
+                #     # noise = -sde.mult_std(L, score)
+                #     noise = -score
                 
                 theta_now = sde._theta(vec_t)
                 theta_pred = sde._theta(vec_t_pred)
