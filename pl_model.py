@@ -150,7 +150,7 @@ class DiffSepModel(pl.LightningModule):
         
         self.loss_option = getattr(self.config.model, "loss_option", "origin")
 
-    def separate(self, mix, sampler='ddim', predictor="reverse_diffusion", corrector="ald2",**kwargs):
+    def separate(self, mix, sampler='pc', predictor="reverse_diffusion", corrector="ald2",**kwargs):
 
         sampler_kwargs = self.config.model.sampler.copy()
         with open_dict(sampler_kwargs):
