@@ -101,7 +101,7 @@ class AnnealedLangevinDynamics2(Corrector):
 
     def __init__(self, sde, score_fn, snr, n_steps):
         super().__init__(sde, score_fn, snr, n_steps)
-        if not isinstance(sde, (sdes.MixSDE, sdes.PriorMixSDE, sdes.OUVESDE, sdes.OUVESDE_KH)):
+        if not isinstance(sde, (sdes.MixSDE, sdes.PriorMixSDE, sdes.OUVESDE, sdes.OUVESDE_KH, sdes.OUVESDE_KH_test, sdes.OUVESDE_KH_test2)):
             raise NotImplementedError(
                 f"SDE class {sde.__class__.__name__} not yet supported."
             )

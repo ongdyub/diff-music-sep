@@ -3,7 +3,7 @@
 defaults:
     - _self_
     - override /datamodule: musdb18_16000
-    - override /model: musdb_16000_ouve
+    - override /model: musdb_16000_test
     - override /trainer: allgpus
 
 name: musdb18_16000  # experiment name

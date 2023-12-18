@@ -9,7 +9,7 @@ seed: 64736289
 name: default  # experiment name
 train: true
 test: false
-load_pretrained: /home/qor6271/Desktop/diff-music-sep/exp/musdb18_16000/2023-12-11_22-15-21_experiment-music-separation-16000-ouvekh_model.sde.sigma_max-0.5_model.sde.sigma_min-0.01_model.sde.theta_int_max-3.0_model.sde.theta_min-0.1_model.sde.theta_rho-4/checkpoints/epoch-4999_si_sdr-0.000.ckpt
+load_pretrained: /home/qor6271/Desktop/diff-music-sep/exp/musdb18_16000/ddpm/checkpoints/epoch-7999_si_sdr-0.000.ckpt
 
 path:
     exp_root: exp
