@@ -319,7 +319,14 @@ def get_ddim_sampler(
                     device=y.device,
                 ).flip(dims=(0,))
             else:
-                raise NotImplementedError(f"Schedule '{schedule}' does not exist")
+                try:
+                    theta_min, theta_max, theta_rho = schedule
+                    a = theta_min ** (1/theta_rho)
+                    b = theta_max ** (1/theta_rho) - theta_min ** (1/theta_rho)
+                    timesteps = torch.linspace(sde.T, eps, sde.N + 1, device=y.device)
+                    timesteps = 1-torch.exp(-(((a + b*timesteps)**(theta_rho+1) - a**(theta_rho+1))/(b*(theta_rho+1))))
+                except:
+                    raise NotImplementedError(f"Schedule '{schedule}' does not exist")
             # timesteps = 1 - timesteps
             # timesteps = timesteps.flip(dims=(0,)) + eps
             s_bar = torch.broadcast_to(y, xt.shape) / sde.ndim

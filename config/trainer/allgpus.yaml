@@ -7,6 +7,6 @@ accelerator: gpu
 devices: -1
 strategy: ddp
 auto_select_gpus: true
-check_val_every_n_epoch: 2000
+check_val_every_n_epoch: 50
 default_root_dir: .
 profiler: false
