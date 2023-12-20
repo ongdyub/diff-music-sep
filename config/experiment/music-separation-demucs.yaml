@@ -2,7 +2,7 @@
 
 defaults:
     - _self_
-    - override /datamodule: musdb18_16000
+    - override /datamodule: musdb18
     - override /model: musdb_model_demucs
     - override /trainer: allgpus
 
