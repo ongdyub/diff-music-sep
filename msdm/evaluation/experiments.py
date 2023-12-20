@@ -44,7 +44,8 @@ def separate_slakh_weak_msdm(
 
     dataset = ChunkedSupervisedDataset(
         audio_dir=dataset_path,
-        stems=["bass", "drums", "guitar", "piano"],
+        # stems=["bass", "drums", "guitar", "piano"],
+        stems=['bass', 'drums', 'other', 'vocals'],
         sample_rate=22050,
         max_chunk_size=262144,
         min_chunk_size=262144,
@@ -102,7 +103,8 @@ def separate_slakh_msdm(
 
     dataset = ChunkedSupervisedDataset(
         audio_dir=dataset_path,
-        stems=["bass", "drums", "guitar", "piano"],
+        # stems=["bass", "drums", "guitar", "piano"],
+        stems=['bass', 'drums', 'other', 'vocals'],
         sample_rate=22050,
         max_chunk_size=262144,
         min_chunk_size=262144,
@@ -119,7 +121,8 @@ def separate_slakh_msdm(
     
     separator = MSDMSeparator(
         model=model,
-        stems=["bass", "drums", "guitar", "piano"],
+        # stems=["bass", "drums", "guitar", "piano"],
+        stems=['bass', 'drums', 'other', 'vocals'],
         sigma_schedule=KarrasSchedule(sigma_min=sigma_min, sigma_max=sigma_max, rho=7.0),
         differential_fn=diff_fn,
         s_churn=s_churn,

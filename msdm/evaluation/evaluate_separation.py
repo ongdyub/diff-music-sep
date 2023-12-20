@@ -83,7 +83,8 @@ def load_and_resample_track(track_path: Union[str,Path], stems: Sequence[str], r
 def get_full_tracks(
     separation_path: Union[str, Path],
     expected_sample_rate: int = 22050,
-    stems: Sequence[str] = ("bass","drums","guitar","piano"),
+    # stems: Sequence[str] = ("bass","drums","guitar","piano"),
+    stems: Sequence[str] = ('bass', 'drums', 'other', 'vocals'),
 ):
     separation_folder = Path(separation_path)
     assert separation_folder.exists(), separation_folder
@@ -128,7 +129,8 @@ def save_tracks(
     separation_path: Union[str, Path],
     output_path: Union[str,Path],
     expected_sample_rate: int = 22050,
-    stems=("bass","drums","guitar","piano"),
+    # stems=("bass","drums","guitar","piano"),
+    stems=('bass', 'drums', 'other', 'vocals'),
 ):
     os.mkdir(output_path)
     for track, stem_to_wav in get_full_tracks(separation_path, expected_sample_rate, stems):
@@ -142,7 +144,8 @@ def evaluate_separations(
     dataset_path: Union[str, Path],
     separation_sr: int,
     filter_single_source: bool = True,
-    stems: Sequence[str] = ("bass","drums","guitar","piano"),
+    # stems: Sequence[str] = ("bass","drums","guitar","piano"),
+    stems: Sequence[str] = ('bass', 'drums', 'other', 'vocals'),
     eps: float = 1e-8,
     chunk_duration: float = 4.0, 
     overlap_duration: float = 2.0

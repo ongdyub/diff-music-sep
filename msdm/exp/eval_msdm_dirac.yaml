@@ -1,6 +1,7 @@
 # @package _global_
 
-dataset_path: ${work_dir}/data/slakh2100/test
+# dataset_path: ${work_dir}/data/slakh2100
+dataset_path: ${work_dir}/data/musdbhq/test
 separation_dir: ${work_dir}/output/separations/msdm-dirac
 separation:
   _target_: evaluation.experiments.separate_slakh_msdm
