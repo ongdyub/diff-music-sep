@@ -409,8 +409,8 @@ msdm/logs/
 msdm/output/separations/*
 msdm/output/generations/*
 msdm/output/partial_generations/*
-# msdm/data/*
-# msdm/ckpts/*
+msdm/data/*
+msdm/ckpts/*
 msdm/!data/convert_data_format.sh
 msdm/!data/README.md
 msdm/!data/dummy_slakh2100/
