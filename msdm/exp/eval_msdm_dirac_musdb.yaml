@@ -1,0 +1,15 @@
+# @package _global_
+
+# dataset_path: ${work_dir}/data/slakh2100/test
+dataset_path: ${work_dir}/data/musdbhq/test
+separation_dir: ${work_dir}/output/separations/msdm-dirac-musdb
+separation:
+  _target_: evaluation.experiments_musdb.separate_slakh_msdm
+  _partial_: True 
+  model_path: ${work_dir}/ckpts/run_musdb/epoch=530-valid_loss=0.001.ckpt
+  # model_path: ${work_dir}/ckpts/avid-darkness-164/epoch=419-valid_loss=0.014.ckpt
+  s_churn: 20.0
+  source_id: 0 
+  num_steps: 150
+  batch_size: 256  # < Change to best fit your architecture
+  num_resamples: 2

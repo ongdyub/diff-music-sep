@@ -7,7 +7,7 @@ import torch
 import yaml
 from audio_diffusion_pytorch import KarrasSchedule
 
-from main.data import ChunkedSupervisedDataset
+from main.data_musdb import ChunkedSupervisedDataset
 from main.module_base import Model
 from main.separation import *
 
