@@ -2,7 +2,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 
-from evaluation.evaluate_separation import evaluate_separations
+from evaluation.evaluate_separation_musdb import evaluate_separations
 from main import utils
 
 
@@ -23,8 +23,8 @@ def main(config: DictConfig):
 
     # Store and show results
     results.to_csv(separation_dir/"metrics.csv")
-    log.info(f'Results:\n{results[["bass","drums","guitar","piano"]].mean()}')
-    # log.info(f"Results:\n{results[['bass', 'drums', 'other', 'vocals']].mean()}")
+    # log.info(f'Results:\n{results[["bass","drums","guitar","piano"]].mean()}')
+    log.info(f"Results:\n{results[['bass', 'drums', 'other', 'vocals']].mean()}")
 
 
 if __name__ == "__main__":

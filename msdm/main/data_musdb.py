@@ -305,10 +305,10 @@ class SupervisedDataset(SeparationDataset):
         stems_tracks = {}
         for stem, stem_path in stem_paths.items():
             audio_track, sr = torchaudio.load(stem_path)
-            assert sr == self.sample_rate, f"sample rate {sr} is different from target sample rate {self.sample_rate}"
-            # if sr != self.sample_rate:
-            #     resampler = T.Resample(sr, self.sample_rate, dtype=audio_track.dtype)
-            #     audio_track = resampler(audio_track)[0:1]
+            # assert sr == self.sample_rate, f"sample rate {sr} is different from target sample rate {self.sample_rate}"
+            if sr != self.sample_rate:
+                resampler = T.Resample(sr, self.sample_rate, dtype=audio_track.dtype)
+                audio_track = resampler(audio_track)[0:1]
             stems_tracks[stem] = audio_track
                         
         channels, samples = zip(*[t.shape for t in stems_tracks.values()])
