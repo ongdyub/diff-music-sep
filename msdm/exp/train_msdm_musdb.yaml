@@ -1,20 +1,22 @@
 # @package _global_
 
 sampling_rate: 22050
-dataset_path: ${work_dir}/data/slakh2100
+# dataset_path: ${work_dir}/data/slakh2100
+dataset_path: ${work_dir}/data/musdbhq
 length: 262144
 channels: 1
 min_duration: 12.0
 max_duration: 640.0
 aug_shift: True
-stem: ???
+# stems: ['bass', 'drums', 'guitar', 'piano']
+stems: ['bass', 'drums', 'other', 'vocals']
 
 model:
   _target_: main.module_base.Model
-  learning_rate: 1e-5
+  learning_rate: 1e-4
   beta1: 0.9
   beta2: 0.99
-  in_channels: ${channels}
+  in_channels: 4
   channels: 256
   patch_factor: 16
   patch_blocks: 1
@@ -40,33 +42,30 @@ model:
 
 datamodule:
   _target_: main.module_base.DatamoduleWithValidation
-  
   train_dataset:
     _target_: main.data.MultiSourceDataset
     audio_files_dir: ${dataset_path}/train
     sr: ${sampling_rate}
-    channels: 1
+    channels: ${channels}
     min_duration: ${min_duration}
     max_duration: ${max_duration}
     aug_shift: ${aug_shift}
     sample_length: ${length}
-    stems: 
-      - ${stem}
-  
+    stems: ${stems}
+
   val_dataset:
     _target_: main.data.MultiSourceDataset
     audio_files_dir: ${dataset_path}/validation
     sr: ${sampling_rate}
-    channels: 1
+    channels: ${channels}
     min_duration: ${min_duration}
     max_duration: ${max_duration}
     aug_shift: ${aug_shift}
     sample_length: ${length}
-    stems: 
-      - ${stem}
+    stems: ${stems}
 
-  batch_size: 16 
-  num_workers: 8
+  batch_size: 48
+  num_workers: 4
   pin_memory: True
 
 callbacks:
@@ -89,12 +88,13 @@ callbacks:
     max_depth: 2
 
   audio_samples_logger:
-    _target_: main.module_base.SampleLogger
+    _target_: main.module_base.MultiSourceSampleLogger
     num_items: 1
-    channels: ${channels}
+    channels: 4
     sampling_rate: ${sampling_rate}
     length: ${length}
     sampling_steps: [100]
+    stems: ${stems}
     diffusion_sampler:
       _target_: audio_diffusion_pytorch.ADPM2Sampler
       rho: 1.0
@@ -107,6 +107,7 @@ callbacks:
 loggers:
   wandb:
     _target_: pytorch_lightning.loggers.wandb.WandbLogger
+    name: ${oc.env:RUN_NAME}
     project: ${oc.env:WANDB_PROJECT}
     entity: ${oc.env:WANDB_ENTITY}
     # offline: False  # set True to store all logs only locally
@@ -116,12 +117,12 @@ loggers:
 
 trainer:
   _target_: pytorch_lightning.Trainer
-  gpus: 1 # Set `1` to train on GPU, `0` to train on CPU only, and `-1` to train on all GPUs, default `0`
+  gpus: -1 # Set `1` to train on GPU, `0` to train on CPU only, and `-1` to train on all GPUs, default `0`
   precision: "bf16" # Precision used for tensors, default `32`
   accelerator: null # `ddp` GPUs train individually and sync gradients, default `None`
   min_epochs: 0
-  max_epochs: -1
+  max_epochs: 200
   enable_model_summary: False
   log_every_n_steps: 10 # Logs metrics every N batches
-  check_val_every_n_epoch: null
-  val_check_interval: 4000
+  check_val_every_n_epoch: 1
+  val_check_interval: null

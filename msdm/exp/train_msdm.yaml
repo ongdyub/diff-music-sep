@@ -1,15 +1,15 @@
 # @package _global_
 
 sampling_rate: 22050
-# dataset_path: ${work_dir}/data/slakh2100
-dataset_path: ${work_dir}/data/musdbhq
+dataset_path: ${work_dir}/data/slakh2100
+# dataset_path: ${work_dir}/data/musdbhq
 length: 262144
 channels: 1
 min_duration: 12.0
 max_duration: 640.0
 aug_shift: True
-# stems: ['bass', 'drums', 'guitar', 'piano']
-stems: ['bass', 'drums', 'other', 'vocals']
+stems: ['bass', 'drums', 'guitar', 'piano']
+# stems: ['bass', 'drums', 'other', 'vocals']
 
 model:
   _target_: main.module_base.Model
@@ -121,7 +121,7 @@ trainer:
   precision: "bf16" # Precision used for tensors, default `32`
   accelerator: null # `ddp` GPUs train individually and sync gradients, default `None`
   min_epochs: 0
-  max_epochs: 1000
+  max_epochs: 500
   enable_model_summary: False
   log_every_n_steps: 10 # Logs metrics every N batches
   check_val_every_n_epoch: 1
